@@ -64,6 +64,7 @@ sub perls_installed {
 sub instance_remove {
     my @perls_installed = @_;
 
+    print "$_\n" for @perls_installed;
     print "\nremoving previous installs...\n" if $debug;
 
     my $remove_cmd = $is_win
@@ -97,12 +98,12 @@ sub instance_install {
         push @new_installs, "perl-$version";
     }
     else {
-        for ($count){
+        for (1..$count){
             push @new_installs, $perls_available[rand @perls_available];
         }
     }
 
-    if ($count){
+    if ($count && $reload){
         for (@new_installs){
             print "\ninstalling $_...\n" if $debug;
             `$install_cmd $_`;
@@ -174,6 +175,7 @@ sub run {
 
     my @perls_installed = perls_installed($brew_info);
 
+    print "$_\n" for @perls_installed;
     if ($debug){
         print "$_ installed\n" for @perls_installed;
         print "\n";
