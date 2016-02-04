@@ -43,9 +43,15 @@ run($count);
 sub perls_available {
     my $brew_info = shift;
 
-    my @perls_available 
-      = $brew_info =~ /(perl-\d\.\d+\.\d+)/g;
+    my @perls_available = $is_win
+        ? $brew_info =~ /(\d\.\d+\.\d+_\d+)/g
+        : $brew_info =~ /(perl-\d\.\d+\.\d+)/g;
 
+    if ($is_win){
+        for (@perls_available){
+            s/perl-//;
+        }
+    }
     return @perls_available;
 }
 sub perls_installed {
