@@ -35,7 +35,8 @@ exit;
 }
 
 my $cwd = getcwd();
-my $is_win = $^O =~ /Win/ ? 1 : 0;
+my $is_win = 0;
+$is_win = 1 if $^O =~ /Win/;
 
 run($count);
 
@@ -157,7 +158,9 @@ sub run {
 
     my $count = shift // 0;
 
-    my $brew_info = `perlbrew available`;
+    my $brew_info = $is_win
+        ? `berrybrew available`
+        : `perlbrew available`;
     
     my @perls_available = perls_available($brew_info);
 
