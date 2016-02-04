@@ -15,13 +15,7 @@ my $reload = $ARGV[1];
 
 my $is_win = 0;
 
-if ($^O eq 'MSWin32'){
-    $is_win = 1;
-    win_build($num);
-}
-else {
-    unix_build($num);
-}
+run($num);
 
 sub perls_available {
     my $brew_info = shift;
@@ -38,71 +32,72 @@ sub perls_installed {
         ? $brew_info =~ /(\d\.\d{2}\.\d(?:_\d{2}))(?!=_)\s+\[installed\]/ig
         : $brew_info =~ /(perl-\d\.\d+\.\d+)/g;
 }
+sub instance_remove {
+    print "\nremoving previous installs...\n" if $debug;
 
-sub unix_build {
+    my $remove_cmd = $is_win
+        ? 'berrybrew remove'
+        : 'perlbrew uninstall';
 
-    my $num = shift;
+    for (@perls_installed){
+        my $ver = $^V;
+        $ver =~ s/v//;
 
-    my $brew_info = `perlbrew available`;
+        print "skipping version we're using, $_\n" if $debug;
+        next if $_ =~ /$ver$/;
+
+        `$remove_cmd $_`;
+    }
+
+    print "\nremoval of existing perl installs complete...\n" if $debug;
+}
+sub instance_install {
     
-    my @perls_available = perls_available($brew_info);
+    my $count = shift;
 
-    $num = scalar @perls_available if $num =~ /all/;
+    my $install_cmd = $is_win
+        : 'berrybrew install'
+        ? 'perlbrew install --notest -j 4';
 
-    my @perls_installed = perls_installed($brew_info);
+    my @new_installs;
 
-    if ($debug){
-        print "$_ installed\n" for @perls_installed;
-        print "\n";
+    for ($num){
+        push @new_installs, $perls_available[rand @perls_available];
     }
 
-    my %perl_vers;
-
-    if ($reload){
-        print "\nremoving previous installs...\n" if $debug;
-
-        for (@perls_installed){
-            my $ver = $^V;
-            $ver =~ s/v//;
-
-            print "skipping version we're using, $_\n" if $debug;
-            next if $_ =~ /$ver$/;
-
-            `perlbrew uninstall $_`;
-        }
-
-        print "\nremoval of existing perl installs complete...\n" if $debug;
-    }
-    else {
-        print "not rebuilding perlbrew instances...\n";
-    }
-
-    if ($num){
-        my @new_installs;
-
-        for ($num){
-            push @new_installs, $perls_available[rand @perls_available];
-        }
-
-        for (@new_installs){
-            print "\ninstalling $_...\n" if $debug;
-            `perlbrew install --notest -j 4 $_`;
-        }
+    for (@new_installs){
+        print "\ninstalling $_...\n" if $debug;
+        `$install_cmd $_`;
     }
     else {
         print "\nusing existing versions only\n" if $debug;
     }
+}
+sub results {
+
+    my $exec_cmd = $is_win
+        ? 'berrybrew exec perl build\\test.pl'
+        : 'perlbrew exec build/test.pl';
+
+    my $debug_exec_cmd = $is_win
+        ? 'berrybrew exec perl build\\test.pl'
+        : 'perlbrew exec build/test.pl 2>/dev/null';
 
     my $result;
 
-    if ($debug){
-        print "\n...brewing\n" if $debug;
-        $result = `perlbrew exec perl build/test.pl`;
-        print "...done brew\n" if $debug;
-    } 
-    else {
-        $result = `perlbrew exec build/test.pl 2>/dev/null`;
+    print "\n...executing\n" if $debug;
+
+    if ($is_win){
+        $result = `$exec_cmd` if $is_win;
     }
+    else {
+        if ($debug){
+            $result = `$debug_exec_cmd`;
+        }
+        else {
+            $result = `$exec_cmd`;
+        }
+    } 
 
     my @ver_results = split /\n\n\n/, $result;
 
@@ -126,66 +121,28 @@ sub unix_build {
         print "$ver :: $res\n";
     }
 }
-sub win_build {
+
+sub run {
 
     my $num = shift;
 
-    if ($ENV{PATH} !~ /berrybrew/){
-        warn "\nberrybrew not found on Windows system\n";
-        return;
-    }
-
-    my $brew_info = `berrybrew available`;
-
-    my @perls_available 
-      = $brew_info =~ /(\d\.\d{2}\.\d(?:_\d{2}))(?!=_)/g;
+    my $brew_info = `perlbrew available`;
+    
+    my @perls_available = perls_available($brew_info);
 
     $num = scalar @perls_available if $num =~ /all/;
 
-    my @perls_installed
+    my @perls_installed = perls_installed($brew_info);
+
+    if ($debug){
+        print "$_ installed\n" for @perls_installed;
+        print "\n";
+    }
 
     my %perl_vers;
 
-    print "\nremoving previous installs...\n" if $debug;
+    instance_remove() if $reload;
+    instance_install($num);
 
-    for (@perls_installed){
-        `berrybrew remove $_` if $reload;
-    }
-
-    print "\nremoval of existing perl installs complete...\n" if $debug;
-
-    my @new_installs;
-
-    for (1..$num){
-        push @new_installs, $perls_available[rand @perls_available];
-    }
-
-    for (@new_installs){
-        print "\ninstalling $_...\n" if $debug;
-        `berrybrew install $_` if $reload;
-    }
-
-    print "\nexecuting commands...\n" if $debug;
-
-    my $result = `berrybrew exec perl build\\test.pl`;
-
-    my @ver_results = split /\n\n\n/, $result;
-
-    my $ver;
-
-    print "\n\n";
-
-    for (@ver_results){
-        if (/^Perl-(\d\.\d+\.\d+.*)/){
-            $ver = $1;
-        }
-        my $res;
-        if (/Result:\s+(PASS)/){
-           $res = $1; 
-        }
-        else {
-            $res = 'FAIL';
-        }
-        print "$ver :: $res\n";
-    }
+    results();
 }
