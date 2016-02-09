@@ -23,7 +23,8 @@ if ($help){
     Options:
 
     --debug | -d:   Bool, enable verbosity
-    --count | -c:   Integer, how many random versions of perl to install
+    --count | -c:   Integer, how many random versions of perl to install.
+                    Send in -1 to install all available versions.
     --reload | -r:  Bool, remove all installed perls (less the current one)
                     before installation of new ones
     --verion | -v:  String, the number portion of an available perl version
