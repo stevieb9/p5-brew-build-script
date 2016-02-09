@@ -8,9 +8,9 @@ use Getopt::Long;
 my ($debug, $count, $reload, $version, $help);
 
 GetOptions(
-    "debug=i" => \$debug,
-    "count=i" => \$count,
-    "reload=i" => \$reload,
+    "debug=i"   => \$debug,
+    "count=i"   => \$count,
+    "reload=i"  => \$reload,
     "version=s" => \$version,
     "help"      => \$help,
 );
@@ -89,7 +89,7 @@ sub instance_remove {
 }
 sub instance_install {
     my $count = shift;
-    my @perls_available = @_;    
+    my ($perls_available, $perls_installed) = @_;    
 
     my $install_cmd = $is_win
         ? 'berrybrew install'
@@ -104,17 +104,20 @@ sub instance_install {
     else {
         if ($count) {
             while ($count > 0){
-                push @new_installs, $perls_available[rand @perls_available];
+                my $perl = $perls_available->[rand @$perls_available];
+                if (grep { $perl eq $_ } @$perls_installed){
+                    print "$perl version is already installed... skipping\n" if $debug;
+                    next;
+                }
+                push @new_installs, $perl;
                 $count--;
             }
         }
     }
 
-    print "$_\n" for @new_installs;
-
     if (@new_installs){
         for (@new_installs){
-            print "\ninstalling $_...\n" if $debug;
+            print "installing $_...\n";
             `$install_cmd $_`;
         }
     }
@@ -193,7 +196,7 @@ sub run {
     my %perl_vers;
 
     instance_remove(@perls_installed) if $reload;
-    instance_install($count, @perls_available);
+    instance_install($count, \@perls_available, \@perls_installed);
 
     results();
 }
