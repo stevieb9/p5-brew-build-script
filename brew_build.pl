@@ -26,10 +26,10 @@ if ($help){
     --count | -c:   Integer, how many random versions of perl to install
     --reload | -r:  Bool, remove all installed perls (less the current one)
                     before installation of new ones
-    --verion | -v:  String (N.NN.N) the number portion of an available
-                    perl version according to "perlbrew available" Note
-                    that only one is allowed at this time
-    --help | -h:    print this message
+    --verion | -v:  String, the number portion of an available perl version
+                    according to "perlbrew available" Note that only one is
+                    allowed at this time
+    --help | -h:    print this help message
 EOF
 exit;
 }
@@ -64,8 +64,10 @@ sub perls_installed {
 sub instance_remove {
     my @perls_installed = @_;
 
-    print "$_\n" for @perls_installed;
-    print "\nremoving previous installs...\n" if $debug;
+    if ($debug) {
+        print "$_\n" for @perls_installed;
+        print "\nremoving previous installs...\n";
+    }
 
     my $remove_cmd = $is_win
         ? 'berrybrew remove'
@@ -95,15 +97,21 @@ sub instance_install {
     my @new_installs;
 
     if ($version){
-        push @new_installs, "perl-$version";
+        $version = $is_win ? $version : "perl-$version";
+        push @new_installs, $version;
     }
     else {
-        for (1..$count){
-            push @new_installs, $perls_available[rand @perls_available];
+        if ($count) {
+            while ($count > 0){
+                push @new_installs, $perls_available[rand @perls_available];
+                $count--;
+            }
         }
     }
 
-    if ($count && $reload){
+    print "$_\n" for @new_installs;
+
+    if (@new_installs){
         for (@new_installs){
             print "\ninstalling $_...\n" if $debug;
             `$install_cmd $_`;
@@ -128,7 +136,7 @@ sub results {
     print "\n...executing\n" if $debug;
 
     if ($is_win){
-        $result = `$exec_cmd` if $is_win;
+        $result = `$exec_cmd`;
     }
     else {
         if ($debug){
@@ -141,22 +149,22 @@ sub results {
 
     my @ver_results = split /\n\n\n/, $result;
 
-    my $i = 0;
-    my $ver;
-
     print "\n\n";
 
     for (@ver_results){
-        if (/^(perl-\d\.\d+\.\d+)/){
+        my $ver;
+
+        if (/^([Pp]erl-\d\.\d+\.\d+)/){
             $ver = $1;
         }
         my $res;
+
         if (/Result:\s+(PASS)/){
             $res = $1; 
         }
         else {
             print $_;
-            $res = 'FAIL';
+            exit;
         }
         print "$ver :: $res\n";
     }
@@ -171,7 +179,7 @@ sub run {
     
     my @perls_available = perls_available($brew_info);
 
-    $count = scalar @perls_available if $count -= -1;
+    $count = scalar @perls_available if $count < 0;
 
     my @perls_installed = perls_installed($brew_info);
 
